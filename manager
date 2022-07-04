@@ -48,7 +48,7 @@ if test "$COMMAND" = "help"
     echo "  upd-git <glob> - Commits any metadata to the appropriate git repo."
     echo "  new-git <name> [tags]... - Same as `$MANAGER init-git ($MANAGER new <name> [tags]...)`."
     echo "  copy-git <repo-url> - Clones a git repo made with init-git (or new-git) into the glob storage and adds linked folders."
-    echo "  clone-git <repo-url> [tags]... <TODO> - Clones a plain git repo into the glob storage and adds linked folders."
+    echo "  clone-git <repo-url> [tags]... - Clones a plain git repo into the glob storage and adds linked folders."
     echo "  develop <glob> <TODO> - Runs the meta development script for a glob."
     echo "  dev <name> <TODO> - Runs the meta development script for a named glob."
     echo "  nixdi <glob> <exec> [nixpkg]... <TODO> - Creates a meta development script for a glob which runs `exec` with the appropriate nix pkgs."
@@ -180,6 +180,7 @@ if test "$COMMAND" = "remove"
     end
     rm $GLOBDIRBYNAME/(cat $GLOBDIR/$argv[2]/name)
     rm -rf $RP/git
+    rm -rf $RP/data/.git
     rm -r $RP
 end
 
@@ -312,7 +313,18 @@ if test "$COMMAND" = "copy-git"
 end
 
 if test "$COMMAND" = "clone-git"
-    echo TODO
+    set REPOINFO (string match -r "([^/:]+)/([^/:]+)\.git" $argv[2])
+    set USER $REPOINFO[2]
+    set NAME $REPOINFO[3]
+
+    if test "$USER" = "" -o "$NAME" = ""
+        echo (set_color red)"ERROR: Parsing failed on git url." 1>&2
+        exit 1
+    end
+
+    set GLOBID (fish $MANAGER new $USER"_"$NAME $argv[3..] git/$USER)
+
+    git clone $argv[2] $PWD/$GLOBDIR/$GLOBID/data
 end
 
 if test "$COMMAND" = "develop"
