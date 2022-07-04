@@ -1,0 +1,5 @@
+# ToDo
+
+- `mgr clone-git repo/repo.git` Normal Git Clone (without git repo in metadata). This should just do `mgr new repoName` && `git clone repo/repo.git ./.globs/by-name/repoName`
+- `mgr develop <glob>` & `mgr dev <named>` - Should execute a script in repo metadata `dev.sh` which runs text editor like vscode. dev.sh is run it GLOB DATA PWD
+- `mgr nixdi <glob> <exec> [nixpkg]...` - Should add a dev.sh file to metadata of glob which runs `exec` with the appropriate nix packages.

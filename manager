@@ -45,8 +45,14 @@ if test "$COMMAND" = "help"
     echo "  alias-tag <tag> [aliases]... - Aliases a tag for use in commands. Aliases are stored in $GLOBDIRMETA/tagAliases."
     echo "  defaults - Sets up default aliases and some tag folders."
     echo "  init-git <glob> - Initializes a git repo for the glob."
+    echo "  upd-git <glob> - Commits any metadata to the appropriate git repo."
     echo "  new-git <name> [tags]... - Same as `$MANAGER init-git ($MANAGER new <name> [tags]...)`."
     echo "  copy-git <repo-url> - Clones a git repo made with init-git (or new-git) into the glob storage and adds linked folders."
+    echo "  clone-git <repo-url> [tags]... <TODO> - Clones a plain git repo into the glob storage and adds linked folders."
+    echo "  develop <glob> <TODO> - Runs the meta development script for a glob."
+    echo "  dev <name> <TODO> - Runs the meta development script for a named glob."
+    echo "  nixdi <glob> <exec> [nixpkg]... <TODO> - Creates a meta development script for a glob which runs `exec` with the appropriate nix pkgs."
+    echo "  set-dev <glob> <TODO> - Opens a text editor to allow you to write a meta development script for a glob."
     exit
 end
 
@@ -266,6 +272,17 @@ if test "$COMMAND" = "init-git"
     fish $MANAGER upd-git $argv[2]
 end
 
+if test "$COMMAND" = "upd-git"
+    cd $GLOBDIR/$argv[2]
+    set -e GIT_DIR
+    git add .
+    git commit -m "Update"
+end
+
+if test "$COMMAND" = "new-git"
+    fish $MANAGER init-git (fish $MANAGER new $argv[2..])
+end
+
 if test "$COMMAND" = "copy-git"
 #Usage ./manager copy-git GITURL.git
 # This is for usage with remote repos created with `init-git`
@@ -294,14 +311,22 @@ if test "$COMMAND" = "copy-git"
 
 end
 
-
-if test "$COMMAND" = "upd-git"
-    cd $GLOBDIR/$argv[2]
-    set -e GIT_DIR
-    git add .
-    git commit -m "Update"
+if test "$COMMAND" = "clone-git"
+    echo TODO
 end
 
-if test "$COMMAND" = "new-git"
-    fish $MANAGER init-git (fish $MANAGER new $argv[2..])
+if test "$COMMAND" = "develop"
+    echo TODO
+end
+
+if test "$COMMAND" = "dev"
+    echo TODO
+end
+
+if test "$COMMAND" = "nixdi"
+    echo TODO
+end
+
+if test "$COMMAND" = "set-dev"
+    echo TODO
 end
