@@ -303,6 +303,7 @@ if test "$COMMAND" = "copy-git"
     echo $PWD/$GLOBDIR/$GLOBID/.git > $GIT_DIR/worktrees/$GLOBID/gitdir
 
     cp $WORKTREETMP/* $PWD/$GLOBDIR/$GLOBID/
+    cp $WORKTREETMP/.* $PWD/$GLOBDIR/$GLOBID/
 
     echo gitdir: $GIT_DIR/worktrees/$GLOBID > $PWD/$GLOBDIR/$GLOBID/.git
 
