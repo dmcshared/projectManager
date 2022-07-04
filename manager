@@ -265,6 +265,35 @@ if test "$COMMAND" = "init-git"
     fish $MANAGER upd-git $argv[2]
 end
 
+if test "$COMMAND" = "copy-git"
+#Usage ./manager copy-git GITURL.git
+# This is for usage with remote repos created with `init-git`
+    set GITTEMP (mktemp -d)
+    set WORKTREETMP (mktemp -d)
+    git clone --bare $argv[2] $GITTEMP
+    GIT_DIR=$GITTEMP git worktree add $WORKTREETMP meta
+
+    set GLOBID (cat $WORKTREETMP/id)
+    # GIT_DIR=$GITTEMP git worktree remove $WORKTREETMP
+
+    mkdir $GLOBDIR/$GLOBID || exit 1
+    mv $GITTEMP $GLOBDIR/$GLOBID/git
+    set -x GIT_DIR $PWD/$GLOBDIR/$GLOBID/git
+
+    git worktree add $PWD/$GLOBDIR/$GLOBID/data main
+
+    mv $GIT_DIR/worktrees/(basename $WORKTREETMP) $GIT_DIR/worktrees/$GLOBID
+    echo $PWD/$GLOBDIR/$GLOBID/.git > $GIT_DIR/worktrees/$GLOBID/gitdir
+
+    cp $WORKTREETMP/* $PWD/$GLOBDIR/$GLOBID/
+
+    echo gitdir: $GIT_DIR/worktrees/$GLOBID > $PWD/$GLOBDIR/$GLOBID/.git
+
+    fish $MANAGER add $GLOBID
+
+end
+
+
 if test "$COMMAND" = "upd-git"
     cd $GLOBDIR/$argv[2]
     set -e GIT_DIR
