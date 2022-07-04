@@ -51,7 +51,7 @@ if test "$COMMAND" = "help"
     echo "  clone-git <repo-url> [tags]... - Clones a plain git repo into the glob storage and adds linked folders."
     echo "  develop <glob> - Runs the meta development script for a glob."
     echo "  dev <name> - Runs the meta development script for a named glob."
-    echo "  nixdi <glob> <exec> [nixpkg]... <TODO> - Creates a meta development script for a glob which runs `exec` with the appropriate nix pkgs."
+    echo "  nixdi <glob> <exec> [nixpkg]... - Creates a meta development script for a glob which runs `exec` with the appropriate nix pkgs."
     echo "  set-dev <glob> - Opens a text editor to allow you to write a meta development script for a glob."
     exit
 end
@@ -285,15 +285,13 @@ if test "$COMMAND" = "new-git"
 end
 
 if test "$COMMAND" = "copy-git"
-#Usage ./manager copy-git GITURL.git
-# This is for usage with remote repos created with `init-git`
+    # This is for usage with remote repos created with `init-git`
     set GITTEMP (mktemp -d)
     set WORKTREETMP (mktemp -d)
     git clone --bare $argv[2] $GITTEMP
     GIT_DIR=$GITTEMP git worktree add $WORKTREETMP meta
 
     set GLOBID (cat $WORKTREETMP/id)
-    # GIT_DIR=$GITTEMP git worktree remove $WORKTREETMP
 
     mkdir $GLOBDIR/$GLOBID || exit 1
     mv $GITTEMP $GLOBDIR/$GLOBID/git
@@ -358,7 +356,20 @@ if test "$COMMAND" = "dev"
 end
 
 if test "$COMMAND" = "nixdi"
-    echo TODO
+    set GLOBID $argv[2]
+    set EXEC $argv[3]
+    set NIXPKG $argv[4..]
+
+    if ! cd $GLOBDIR/$GLOBID
+        echo (set_color red)"ERROR: Glob does not exist." 1>&2
+        exit 1
+    end
+
+    echo "#!/usr/bin/env nix-shell" > ./dev
+    echo "#!nix-shell -p bash $NIXPKG -i bash" >> ./dev
+    echo "$EXEC \$1" >> ./dev
+
+    chmod +x ./dev
 end
 
 if test "$COMMAND" = "set-dev"
@@ -366,6 +377,8 @@ if test "$COMMAND" = "set-dev"
         set EDITOR "nano"
     end
 
-    eval $EDITOR "\"$GLOBDIR/$argv[2]/dev\""
+    cd $GLOBDIR/$argv[2]
+
+    eval $EDITOR "./dev"
     chmod +x $GLOBDIR/$argv[2]/dev
 end
