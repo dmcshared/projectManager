@@ -1,0 +1,277 @@
+#!/usr/bin/env nix-shell
+#!nix-shell -i fish -p fish git
+
+# Setups
+set TAGDIR "."
+set GLOBDIR "./.globs"
+set GLOBDIRBYNAME "$GLOBDIR/by-name"
+set GLOBDIRMETA "$GLOBDIR/meta"
+set MANAGER (status filename)
+mkdir -p $GLOBDIR $GLOBDIRBYNAME $GLOBDIRMETA
+
+
+
+## Tag Setup
+mkdir -p $GLOBDIRMETA/tagAliases
+
+function getRealTag
+    if test "$argv[1]" = ""
+        echo (set_color red)ERROR: Empty Tag Alias Exists. 1>&2
+        exit 1
+    end
+
+    if test -e $GLOBDIRMETA/tagAliases/$argv[1]
+        getRealTag (cat $GLOBDIRMETA/tagAliases/$argv[1])
+    else
+        echo $argv[1]
+    end
+end
+
+# Runtime Setups
+## Args
+set COMMAND $argv[1]
+if test "$COMMAND" = "help"
+    echo "Usage: $MANAGER <command> [<args>]"
+    echo "Commands:"
+    echo "  help - Show this help."
+    echo "  new <name> <tags>... - Creates a new glob with the supplied tags, if any."
+    echo "  list - Lists all globs, their names (if applicable), and their tags."
+    echo "  add <glob> - Adds a glob in the $GLOBDIR directory to the linked folders."
+    echo "  add - Adds any orphaned globs and cleans up meta directories. (by-name, tag folders)"
+    echo "  remove by-name/<name> - Removes a named glob from the $GLOBDIR directory and linked folders."
+    echo "  remove <glob> - Removes a glob from the $GLOBDIR directory and linked folders."
+    echo "  add-tags by-name/<name> <tags>... - Adds tags to a named glob."
+    echo "  add-tags <glob> <tags>... - Adds tags to a glob."
+    echo "  alias-tag <tag> [aliases]... - Aliases a tag for use in commands. Aliases are stored in $GLOBDIRMETA/tagAliases."
+    echo "  defaults - Sets up default aliases and some tag folders."
+    echo "  init-git <glob> - Initializes a git repo for the glob."
+    echo "  new-git <name> <tags>... - Same as `$MANAGER init-git ($MANAGER new <name> <tags>...)`."
+    exit
+end
+
+## Glob UUIDs
+if test "$COMMAND" = "new"
+    set NAME $argv[2]
+    set GLOBID (uuidgen -t)
+end
+
+set GLOBPATH "$GLOBDIR/$GLOBID"
+set GLOBDATAPATH "$GLOBPATH/data"
+
+## Debug
+
+if test "$COMMAND" = "debug-test"
+    # Setup random debug projects
+    # Langs should include javascript, nodejs, python, ruby, rust, fish, nix, typescript
+    fish $MANAGER defaults
+
+    fish $MANAGER new "Test Project 1" "js" "lib/express" "lang/nodejs" "lib/mongodb" &
+    fish $MANAGER new "Test Project 2" "py" "lib/django" "lib/flask" &
+    fish $MANAGER new "Test Project 3" "js" "lang/canvas" "lang/html" &
+    fish $MANAGER new "Test Project 4" "js" "lang/html" "lang/css" "lang/canvas" &
+    fish $MANAGER new "Test Project 5" "js" "lang/html" "lang/css" "lang/canvas" "ts" &
+    fish $MANAGER new "Test Project 6" "py" "lib/tensorflow" "lib/keras" "lib/numpy" &
+    fish $MANAGER new "Test Project 7" "py" "lib/tensorflow" "lib/keras" "lib/numpy" "lib/scipy" &
+    fish $MANAGER new "Test Project 8" "rs" "lib/serde" "lib/serde_json" &
+    fish $MANAGER new "Test Project 9" "rs" "lib/serde" "lib/serde_toml" &
+    fish $MANAGER new "Test Project 10" "rb" "lib/rails" &
+    fish $MANAGER new "Test Project 11" "go" "lib/rails" "lib/activerecord" &
+    fish $MANAGER new "Test Project 12" "go" "lib/rails" "lib/sqlite3" &
+
+    wait
+end
+
+
+## Runtime
+if test "$COMMAND" = "new"
+    if mkdir $GLOBPATH 2> /dev/null
+    else
+        printf "\x1b[31mFATAL ERROR: Same UUID generated\n" 1>&2
+        exit 1
+    end
+    
+    mkdir $GLOBDATAPATH
+
+    echo -n $NAME > $GLOBPATH/name
+    echo -n $GLOBID > $GLOBPATH/id
+    touch $GLOBPATH/tags
+
+    ln -s $PWD/$GLOBPATH $GLOBDIRBYNAME/$NAME || echo (set_color yellow)"WARN: This Glob is inaccessible with the $GLOBDIRBYNAME directory. Use the raw glob id instead."(set_color normal) 1>&2
+    for i in $argv[3..]
+        mkdir -p $TAGDIR/(getRealTag $i)
+        if ln -s $PWD/$GLOBDATAPATH/ $TAGDIR/(getRealTag $i)/$NAME
+            echo (getRealTag $i) >> $GLOBPATH/tags
+        else
+            echo (set_color yellow)"WARN: This Glob is inaccessible in the $i tag. Use `./manager add-tag $GLOBDIR` after removing the incorrect tag if you want it."(set_color normal) 1>&2
+        end
+    end
+
+    echo $GLOBID
+end
+
+
+if test "$COMMAND" = "list"
+    echo "Listing all globs:"
+    for i in $GLOBDIR/*
+        test -e $i/id && echo " " (set_color brblack)(string replace "$GLOBDIR/" "" "$i") (set_color normal)"("(cat $i/name)"):"\t (set_color magenta)(cat $i/tags)
+    end
+end
+
+if test "$COMMAND" = "add"
+    if test "$argv[2]" = ""
+        for d in ./*
+            test -d $d && rm -r $d
+        end
+        rm -r $GLOBDIRBYNAME
+
+        for i in $GLOBDIR/*
+            test -e $i/id && fish $MANAGER add (string replace "$GLOBDIR/" "" "$i") &
+        end
+        wait
+        exit 0
+    end
+
+    if ! test -e $GLOBDIR/$argv[2]
+        echo (set_color red)"ERROR: Glob does not exist." 1>&2
+        exit 1
+    end
+    if ! test -e $GLOBDIR/$argv[2]/id -a -e $GLOBDIR/$argv[2]/name -a -e $GLOBDIR/$argv[2]/tags -a -e $GLOBDIR/$argv[2]/data
+        echo (set_color red)"ERROR: Glob `$argv[2]` malformed." 1>&2
+        exit 1
+    end
+    
+    if ! test -e $GLOBDIRBYNAME/(cat $GLOBDIR/$argv[2]/name)
+        ln -s $PWD/$GLOBDIR/$argv[2] $GLOBDIRBYNAME/(cat $GLOBDIR/$argv[2]/name) || echo (set_color yellow)"WARN: This Glob is inaccessible with the $GLOBDIRBYNAME directory. Use the raw glob id instead."(set_color normal) 1>&2
+    end
+
+    for i in (cat $GLOBDIR/$argv[2]/tags)
+        mkdir -p $TAGDIR/(getRealTag $i)
+        if ln -s $PWD/$GLOBDIR/$argv[2]/data/ $TAGDIR/(getRealTag $i)/(cat $GLOBDIR/$argv[2]/name)
+        else
+            echo (set_color yellow)"WARN: This Glob is inaccessible in the $i tag. Use `./manager add-tag $GLOBDIR` after removing the incorrect tag if you want it."(set_color normal) 1>&2
+        end
+    end
+end
+
+if test "$COMMAND" = "remove"
+    if test "$argv[2]" = ""
+        exit 1
+    end
+    if ! test -e $GLOBDIR/$argv[2]
+        echo (set_color red)"ERROR: Glob does not exist." 1>&2
+        exit 1
+    end
+    if ! test -e $GLOBDIR/$argv[2]/name -a -e $GLOBDIR/$argv[2]/tags
+        echo (set_color red)"ERROR: Glob `$argv[2]` malformed. Not enough info for clean remove." 1>&2
+        exit 1
+    end
+
+    set RP (realpath $PWD/$GLOBDIR/$argv[2])
+
+    for i in (cat $GLOBDIR/$argv[2]/tags)
+        rm $TAGDIR/(getRealTag $i)/(cat $GLOBDIR/$argv[2]/name)
+    end
+    rm $GLOBDIRBYNAME/(cat $GLOBDIR/$argv[2]/name)
+    rm -rf $RP/git
+    rm -r $RP
+end
+
+if test "$COMMAND" = "add-tags"
+    if test "$argv[2]" = ""
+        exit 1
+    end
+    if ! test -e $GLOBDIR/$argv[2]
+        echo (set_color red)"ERROR: Glob does not exist." 1>&2
+        exit 1
+    end
+    if ! test -e $GLOBDIR/$argv[2]/tags
+        echo (set_color red)"ERROR: Glob `$argv[2]` malformed. Not enough info for adding tags safely. To override, add an empty tags file in the glob dir." 1>&2
+        exit 1
+    end
+
+    for i in $argv[3..]
+        mkdir -p $TAGDIR/(getRealTag $i)
+        if ln -s $PWD/$GLOBDIR/$argv[2]/data/ $TAGDIR/(getRealTag $i)/(cat $GLOBDIR/$argv[2]/name)
+            echo (getRealTag $i) >> $GLOBPATH/tags
+        else
+            echo (set_color yellow)"WARN: This Glob is inaccessible in the $i tag. Use `./manager add-tag $GLOBDIR` after removing the incorrect tag if you want it."(set_color normal) 1>&2
+        end
+    end
+end
+
+if test "$COMMAND" = "alias-tag"
+    set TAG $argv[2]
+    set ALIASES $argv[3..]
+
+    for i in $ALIASES
+        mkdir -p (dirname $GLOBDIRMETA/tagAliases/$i)
+        echo -n $TAG >> $GLOBDIRMETA/tagAliases/$i
+    end
+end
+
+if test "$COMMAND" = "defaults"
+    fish $MANAGER alias-tag "lang/javascript" "js" "lang/js" &
+    fish $MANAGER alias-tag "lang/nodejs" "njs" "lang/njs" &
+    fish $MANAGER alias-tag "lang/python3" "python" "lang/python" &
+    fish $MANAGER alias-tag "lang/python" "py" "lang/py" &
+    fish $MANAGER alias-tag "lang/ruby" "rb" "lang/rb" &
+    fish $MANAGER alias-tag "lang/rust" "rs" "lang/rs" &
+    fish $MANAGER alias-tag "lang/fish" "fsh" "lang/fsh" &
+    fish $MANAGER alias-tag "lang/typescript" "ts" "lang/ts" &
+    fish $MANAGER alias-tag "lang/nix" "nix" &
+    fish $MANAGER alias-tag "lang/go" "go" &
+
+    wait
+
+    mkdir -p ./lang ./lib
+    ln -s ./lang ./language
+    ln -s ./lib ./library
+end
+
+if test "$COMMAND" = "init-git"
+
+    if ! test -e $GLOBDIR/$argv[2]
+        echo (set_color red)"ERROR: Glob does not exist." 1>&2
+        exit 1
+    end
+    git init --bare $GLOBDIR/$argv[2]/git
+
+    cd $GLOBDIR/$argv[2]
+    set -x GIT_DIR $PWD/git
+    echo "data" > .gitignore
+    echo "git" >> .gitignore
+
+    git worktree add ./data (git commit-tree -m placeholder (git mktree <&-))
+
+    set -e GIT_DIR
+    cd data
+    touch .gitignore
+    git add ./.gitignore
+    git commit -m "Initial commit"
+    git checkout -b main
+    cd ..
+
+    set -x GIT_DIR $PWD/git
+
+    git worktree add ./meta
+    mv ./git/worktrees/meta ./git/worktrees/$argv[2]
+
+    echo (string replace "meta/" "" (cat ./git/worktrees/$argv[2]/gitdir)) > ./git/worktrees/$argv[2]/gitdir
+
+    echo gitdir: $PWD/git/worktrees/$argv[2] > ./.git
+    rm -r meta
+
+    cd ../..
+    fish $MANAGER upd-git $argv[2]
+end
+
+if test "$COMMAND" = "upd-git"
+    cd $GLOBDIR/$argv[2]
+    set -e GIT_DIR
+    git add .
+    git commit -m "Update"
+end
+
+if test "$COMMAND" = "new-git"
+    fish $MANAGER init-git (fish $MANAGER new $argv[2..])
+end
