@@ -52,7 +52,7 @@ if test "$COMMAND" = "help"
     echo "  develop <glob> - Runs the meta development script for a glob."
     echo "  dev <name> - Runs the meta development script for a named glob."
     echo "  nixdi <glob> <exec> [nixpkg]... <TODO> - Creates a meta development script for a glob which runs `exec` with the appropriate nix pkgs."
-    echo "  set-dev <glob> <TODO> - Opens a text editor to allow you to write a meta development script for a glob."
+    echo "  set-dev <glob> - Opens a text editor to allow you to write a meta development script for a glob."
     exit
 end
 
@@ -335,7 +335,7 @@ if test "$COMMAND" = "develop"
     end
     
     if test -e ../dev
-        ../dev
+        ../dev (pwd)
     else
         echo (set_color red)"ERROR: No dev script found." 1>&2
         exit 1
@@ -350,7 +350,7 @@ if test "$COMMAND" = "dev"
     end
     
     if test -e ../dev
-        ../dev
+        ../dev (pwd)
     else
         echo (set_color red)"ERROR: No dev script found." 1>&2
         exit 1
@@ -362,5 +362,10 @@ if test "$COMMAND" = "nixdi"
 end
 
 if test "$COMMAND" = "set-dev"
-    echo TODO
+    if ! set -q EDITOR
+        set EDITOR "nano"
+    end
+
+    eval $EDITOR "\"$GLOBDIR/$argv[2]/dev\""
+    chmod +x $GLOBDIR/$argv[2]/dev
 end
