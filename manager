@@ -49,8 +49,8 @@ if test "$COMMAND" = "help"
     echo "  new-git <name> [tags]... - Same as `$MANAGER init-git ($MANAGER new <name> [tags]...)`."
     echo "  copy-git <repo-url> - Clones a git repo made with init-git (or new-git) into the glob storage and adds linked folders."
     echo "  clone-git <repo-url> [tags]... - Clones a plain git repo into the glob storage and adds linked folders."
-    echo "  develop <glob> <TODO> - Runs the meta development script for a glob."
-    echo "  dev <name> <TODO> - Runs the meta development script for a named glob."
+    echo "  develop <glob> - Runs the meta development script for a glob."
+    echo "  dev <name> - Runs the meta development script for a named glob."
     echo "  nixdi <glob> <exec> [nixpkg]... <TODO> - Creates a meta development script for a glob which runs `exec` with the appropriate nix pkgs."
     echo "  set-dev <glob> <TODO> - Opens a text editor to allow you to write a meta development script for a glob."
     exit
@@ -328,11 +328,33 @@ if test "$COMMAND" = "clone-git"
 end
 
 if test "$COMMAND" = "develop"
-    echo TODO
+    set GLOBID $argv[2]
+    if ! cd $GLOBDIR/$GLOBID/data
+        echo (set_color red)"ERROR: Glob does not exist." 1>&2
+        exit 1
+    end
+    
+    if test -e ../dev
+        ../dev
+    else
+        echo (set_color red)"ERROR: No dev script found." 1>&2
+        exit 1
+    end
 end
 
 if test "$COMMAND" = "dev"
-    echo TODO
+    set NAME $argv[2]
+    if ! cd $GLOBDIR/by-name/$NAME/data
+        echo (set_color red)"ERROR: Glob does not exist." 1>&2
+        exit 1
+    end
+    
+    if test -e ../dev
+        ../dev
+    else
+        echo (set_color red)"ERROR: No dev script found." 1>&2
+        exit 1
+    end
 end
 
 if test "$COMMAND" = "nixdi"
