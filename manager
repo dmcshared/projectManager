@@ -381,5 +381,5 @@ if test "$COMMAND" = "set-dev"
     cd $GLOBDIR/$argv[2]
 
     eval $EDITOR "./dev"
-    chmod +x $GLOBDIR/$argv[2]/dev
+    chmod +x ./dev
 end
